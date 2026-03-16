@@ -41,12 +41,15 @@
                         materialDesign:HintAssist.Hint="Ngày khám" 
                         Style="{StaticResource MaterialDesignFloatingHintDatePicker}"
                         VerticalAlignment="Center"
-                        FontSize="15"/>
+                        FontSize="15"
+                        SelectedDate="{Binding NgayKham, UpdateSourceTrigger=PropertyChanged}"/>
 
             <!-- Chọn Loại Phòng Khám -->
             <ComboBox x:Name="cbLoaiPhongKham" Grid.Column="2" 
                       materialDesign:HintAssist.Hint="Loại phòng khám"
                       Style="{StaticResource MaterialDesignFloatingHintComboBox}"
+                      ItemsSource="{Binding DanhSachLoaiPhong}" 
+                      SelectedItem="{Binding LoaiPhongDuocChon}"
                       DisplayMemberPath="TenLoaiPhongKham"
                       SelectedValuePath="MaLoaiPhongKham"
                       VerticalAlignment="Center"
@@ -55,13 +58,15 @@
 
         <!-- Dòng 2: DataGrid Danh sách Bệnh Nhân -->
         <DataGrid Grid.Row="2" x:Name="dgDanhSachBenhNhan"
+                  ItemsSource="{Binding DanhSachBenhNhan}"
                   AutoGenerateColumns="False" 
-                  CanUserAddRows="True"
+                  CanUserAddRows="False"
                   CanUserDeleteRows="True"
                   HeadersVisibility="Column"
                   materialDesign:DataGridAssist.ColumnHeaderPadding="10"
                   Background="{DynamicResource MaterialDesignPaper}"
                   RowHeight="40">
+
             <DataGrid.Columns>
                 <!-- STT -->
                 <DataGridTextColumn Header="STT" Binding="{Binding STT}" IsReadOnly="True"/>
