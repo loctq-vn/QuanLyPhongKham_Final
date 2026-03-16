@@ -1,25 +1,25 @@
-﻿using System;
+﻿using MySql.Data.MySqlClient;
+using QuanLyPhongKham_Final.DBHelper;
+using System;
 using System.Collections.Generic;
-using MySql.Data.MySqlClient;
+using System.Windows;
 using QuanLyPhongKham_Final.Models;
-using System.Windows; // Để dùng MessageBox hiện lỗi
 
 namespace QuanLyPhongKham_Final.Repositories
 {
     public class HamLayDanhSach
     {
-        private readonly string connectionString = "server=localhost;port=3306;user=root;password=123456789;database=QuanLyPhongKham;";
+        private readonly DatabaseHelper dbHelper = new DatabaseHelper();
 
-        // 1. Lấy danh sách Loại Phòng Khám (Đổ vào ComboBox)
+        // 1. Lấy danh sách Loại Phòng Khám
         public List<LoaiPhongKham> LayDanhSachLoaiPhong()
         {
             List<LoaiPhongKham> danhSach = new List<LoaiPhongKham>();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                using (MySqlConnection conn = dbHelper.GetConnection())
                 {
                     conn.Open();
-                    // Tên cột phải khớp chính xác với sơ đồ ERD
                     string query = "SELECT MaLoaiPhongKham, TenLoaiPhongKham, SoLuongToiDa FROM LOAIPHONGKHAM";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
@@ -42,16 +42,15 @@ namespace QuanLyPhongKham_Final.Repositories
             return danhSach;
         }
 
-        // 2. Lấy Bệnh Nhân theo Ngày và Loại Phòng (Dựa trên sơ đồ JOIN 3 bảng)
+        // 2. Lấy Bệnh Nhân theo Ngày và Loại Phòng
         public List<BenhNhan> LayBenhNhanTheoDieuKien(DateTime ngayKham, string maLoaiPhong)
         {
             List<BenhNhan> danhSach = new List<BenhNhan>();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                using (MySqlConnection conn = dbHelper.GetConnection())
                 {
                     conn.Open();
-                    // JOIN theo đúng sơ đồ: BENHNHAN -> CHITIETKHAMBENH -> KHAMBENH
                     string query = @"
                         SELECT bn.MaBenhNhan, bn.HoTen, bn.GioiTinh, bn.NamSinh, bn.DiaChi
                         FROM BENHNHAN bn
