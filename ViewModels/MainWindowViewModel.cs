@@ -1,116 +1,276 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Linq;
+using System.Windows;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using QuanLyPhongKham_Final.Models;
-using QuanLyPhongKham_Final.Repositories; // Thêm thư viện gọi file HamLayDanhSach
+using QuanLyPhongKham_Final.Repositories;
 
-namespace QuanLyPhongKham_Final.Views
+namespace QuanLyPhongKham_Final.ViewModels
 {
-    public class MainWindowViewModel : INotifyPropertyChanged
+    /// <summary>
+    /// ViewModel cho MainWindow - Sử dụng MVVM Toolkit
+    /// </summary>
+    public partial class MainWindowViewModel : ObservableObject
     {
-        // --- SỬA LỖI NON-NULLABLE: Khởi tạo sẵn giá trị rỗng thay vì để trống ---
-        private ObservableCollection<BenhNhan> danhSachBenhNhan = new ObservableCollection<BenhNhan>();
-        private ObservableCollection<ChiTietKhamBenh> danhSachKhamBenh = new ObservableCollection<ChiTietKhamBenh>();
+        private readonly RepoBenhNhan repoBenhNhan = new();
+        private readonly RepoLoaiPhongKham repoLoaiPhongKham = new();
+        private readonly RepoKhamBenh repoKhamBenh = new();
+        private readonly RepoChiTietKhamBenh repoChiTietKhamBenh = new();
 
-        // -----------------------------------------------------------------
-        // --- PHẦN THÊM VÀO: Các biến để liên kết với giao diện (XAML) ---
-        // -----------------------------------------------------------------
-        private HamLayDanhSach repository = new HamLayDanhSach(); // Gọi class kết nối DB
+        // ========== OBSERVABLE PROPERTIES ==========
 
-        // --- SỬA LỖI NON-NULLABLE: Khởi tạo sẵn giá trị rỗng ---
-        private ObservableCollection<LoaiPhongKham> danhSachLoaiPhong = new ObservableCollection<LoaiPhongKham>();
-        public ObservableCollection<LoaiPhongKham> DanhSachLoaiPhong
-        {
-            get => danhSachLoaiPhong;
-            set { danhSachLoaiPhong = value; OnPropertyChanged(); }
-        }
+        [ObservableProperty]
+        private ObservableCollection<LoaiPhongKham> danhSachLoaiPhong = new();
 
+        [ObservableProperty]
+        private ObservableCollection<BenhNhan> danhSachAllBenhNhan = new();
+
+        [ObservableProperty]
         private DateTime? ngayKham;
-        public DateTime? NgayKham
-        {
-            get => ngayKham;
-            set
-            {
-                ngayKham = value;
-                OnPropertyChanged();
-                LocDanhSachBenhNhan(); // Cứ đổi ngày là tự động lọc lại
-            }
-        }
 
-        // --- SỬA LỖI NON-NULLABLE: Thêm dấu ? vì lúc đầu chưa có phòng nào được chọn ---
+        [ObservableProperty]
         private LoaiPhongKham? loaiPhongDuocChon;
-        public LoaiPhongKham? LoaiPhongDuocChon
+
+        [ObservableProperty]
+        private BenhNhan? benhNhanDuocChon;
+
+        [ObservableProperty]
+        private ObservableCollection<BenhNhan> danhSachBenhNhan = new();
+
+        // ========== RELAY COMMANDS ==========
+
+        /// <summary>
+        /// Command để thêm bệnh nhân được chọn từ ComboBox vào danh sách
+        /// </summary>
+        [RelayCommand]
+        private void ThemBenhNhan()
         {
-            get => loaiPhongDuocChon;
-            set
+            if (!NgayKham.HasValue || LoaiPhongDuocChon == null)
             {
-                loaiPhongDuocChon = value;
-                OnPropertyChanged();
-                LocDanhSachBenhNhan(); // Cứ chọn loại phòng là tự động lọc lại
+                MessageBox.Show("⚠️ Vui lòng chọn ngày khám và loại phòng!", "Cảnh báo");
+                return;
+            }
+
+            if (BenhNhanDuocChon == null)
+            {
+                MessageBox.Show("⚠️ Vui lòng chọn bệnh nhân!", "Cảnh báo");
+                return;
+            }
+
+            // Kiểm tra bệnh nhân đã tồn tại trong danh sách chưa
+            if (DanhSachBenhNhan.Any(b => b.MaBenhNhan == BenhNhanDuocChon.MaBenhNhan))
+            {
+                MessageBox.Show("⚠️ Bệnh nhân này đã có trong danh sách!", "Cảnh báo");
+                return;
+            }
+
+            // Tạo bản sao của bệnh nhân được chọn và thêm vào danh sách
+            var benhNhanMoi = new BenhNhan
+            {
+                MaBenhNhan = BenhNhanDuocChon.MaBenhNhan,
+                HoTen = BenhNhanDuocChon.HoTen,
+                GioiTinh = BenhNhanDuocChon.GioiTinh,
+                NamSinh = BenhNhanDuocChon.NamSinh,
+                DiaChi = BenhNhanDuocChon.DiaChi,
+                STT = DanhSachBenhNhan.Count + 1
+            };
+
+            DanhSachBenhNhan.Add(benhNhanMoi);
+            BenhNhanDuocChon = null; // Reset ComboBox
+        }
+
+        /// <summary>
+        /// Command để lưu phiếu khám vào database
+        /// Tạo danh sách khám bệnh mới và chi tiết bệnh nhân
+        /// </summary>
+        [RelayCommand]
+        private void LuuPhieuKham()
+        {
+            // Kiểm tra dữ liệu đầu vào
+            if (!ValidateDuLieuDauVao())
+                return;
+
+            try
+            {
+                // 1. Tạo phiếu khám bệnh mới
+                var khamBenhMoi = TaoPhieuKhamBenh();
+                if (khamBenhMoi == null || string.IsNullOrEmpty(khamBenhMoi))
+                {
+                    MessageBox.Show("❌ Lỗi tạo phiếu khám bệnh!", "Lỗi");
+                    return;
+                }
+
+                // 2. Tạo danh sách chi tiết khám bệnh
+                var danhSachChiTiet = TaoDanhSachChiTietKhamBenh(khamBenhMoi);
+                if (!danhSachChiTiet)
+                {
+                    MessageBox.Show("⚠️ Một số bệnh nhân không được lưu thành công!", "Cảnh báo");
+                    return;
+                }
+
+                // 3. Xóa dữ liệu cũ nếu lưu thành công
+                XoaDuLieuSauKhiLuu();
+                MessageBox.Show("✅ Lưu phiếu khám và chi tiết bệnh nhân thành công!", "Thành công");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Lỗi: {ex.Message}", "Lỗi");
             }
         }
-        // -----------------------------------------------------------------
 
-
-        public ObservableCollection<BenhNhan> DanhSachBenhNhan
+        /// <summary>
+        /// Kiểm tra dữ liệu đầu vào trước khi lưu
+        /// </summary>
+        private bool ValidateDuLieuDauVao()
         {
-            get => danhSachBenhNhan;
-            set { danhSachBenhNhan = value; OnPropertyChanged(); }
+            if (!NgayKham.HasValue)
+            {
+                MessageBox.Show("⚠️ Vui lòng chọn ngày khám!", "Cảnh báo");
+                return false;
+            }
+
+            if (LoaiPhongDuocChon == null)
+            {
+                MessageBox.Show("⚠️ Vui lòng chọn loại phòng khám!", "Cảnh báo");
+                return false;
+            }
+
+            if (DanhSachBenhNhan.Count == 0)
+            {
+                MessageBox.Show("⚠️ Danh sách bệnh nhân không được trống!", "Cảnh báo");
+                return false;
+            }
+
+            // Kiểm tra từng bệnh nhân có đủ thông tin không
+            foreach (var bn in DanhSachBenhNhan)
+            {
+                if (string.IsNullOrWhiteSpace(bn.MaBenhNhan))
+                {
+                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Vui lòng chọn mã bệnh nhân!", "Cảnh báo");
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(bn.HoTen))
+                {
+                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Vui lòng nhập họ tên bệnh nhân!", "Cảnh báo");
+                    return false;
+                }
+
+                if (bn.NamSinh <= 0 || bn.NamSinh > DateTime.Now.Year)
+                {
+                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Năm sinh không hợp lệ!", "Cảnh báo");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        public ObservableCollection<ChiTietKhamBenh> DanhSachKhamBenh
+        /// <summary>
+        /// Tạo phiếu khám bệnh mới trong database
+        /// </summary>
+        private string TaoPhieuKhamBenh()
         {
-            get => danhSachKhamBenh;
-            set { danhSachKhamBenh = value; OnPropertyChanged(); }
+            var ngayKhamValue = NgayKham.Value;
+            var maLoaiPhong = LoaiPhongDuocChon?.MaLoaiPhongKham ?? "";
+
+            // Tạo phiếu khám bệnh mới
+            string maKhamBenh = repoKhamBenh.Them(ngayKhamValue, maLoaiPhong);
+            
+            return maKhamBenh;
         }
+
+        /// <summary>
+        /// Tạo danh sách chi tiết khám bệnh cho tất cả bệnh nhân
+        /// </summary>
+        private bool TaoDanhSachChiTietKhamBenh(string maKhamBenh)
+        {
+            bool ketQuaTatCa = true;
+
+            foreach (var bn in DanhSachBenhNhan)
+            {
+                try
+                {
+                    // Tạo chi tiết khám bệnh cho từng bệnh nhân
+                    bool ketQua = repoChiTietKhamBenh.Them(maKhamBenh, bn.MaBenhNhan);
+                    
+                    if (!ketQua)
+                    {
+                        ketQuaTatCa = false;
+                        MessageBox.Show($"⚠️ Lỗi thêm chi tiết khám cho bệnh nhân: {bn.HoTen}", "Cảnh báo");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ketQuaTatCa = false;
+                    MessageBox.Show($"❌ Lỗi xử lý bệnh nhân {bn.HoTen}: {ex.Message}", "Lỗi");
+                    break;
+                }
+            }
+
+            return ketQuaTatCa;
+        }
+
+        /// <summary>
+        /// Xóa dữ liệu cũ sau khi lưu thành công
+        /// </summary>
+        private void XoaDuLieuSauKhiLuu()
+        {
+            DanhSachBenhNhan.Clear();
+            BenhNhanDuocChon = null;
+            NgayKham = DateTime.Now;
+            LoaiPhongDuocChon = null;
+        }
+
+        // ========== CONSTRUCTOR & INITIALIZATION ==========
 
         public MainWindowViewModel()
         {
-            // Tải danh sách bệnh nhân từ database
-            DanhSachBenhNhan = new ObservableCollection<BenhNhan>(GetBenhNhanFromDatabase());
-            DanhSachKhamBenh = new ObservableCollection<ChiTietKhamBenh>();
-
-            // --- PHẦN THÊM VÀO: Lấy sẵn dữ liệu cho ComboBox khi mới chạy App ---
-            DanhSachLoaiPhong = new ObservableCollection<LoaiPhongKham>(repository.LayDanhSachLoaiPhong());
-            NgayKham = DateTime.Now; // Đặt ngày mặc định là hôm nay
-            // -----------------------------------------------------------------
+            InitializeData();
         }
 
-        private List<BenhNhan> GetBenhNhanFromDatabase()
+        /// <summary>
+        /// Khởi tạo dữ liệu từ database
+        /// </summary>
+        private void InitializeData()
         {
-            // Gọi database để lấy danh sách bệnh nhân
-            // Ví dụ: return dbContext.BenhNhans.ToList();
-            return new List<BenhNhan>(); // Giữ nguyên của bạn (khởi tạo danh sách rỗng ban đầu)
-        }
-
-        // -----------------------------------------------------------------
-        // --- PHẦN THÊM VÀO: Hàm thực hiện việc lọc danh sách từ DB ---
-        // -----------------------------------------------------------------
-        private void LocDanhSachBenhNhan()
-        {
-            if (NgayKham.HasValue && LoaiPhongDuocChon != null)
+            try
             {
-                var ketQua = repository.LayBenhNhanTheoDieuKien(NgayKham.Value, LoaiPhongDuocChon.MaLoaiPhongKham);
+                // Lấy danh sách loại phòng khám
+                var loaiPhongList = repoLoaiPhongKham.LayDanhSachAll();
+                DanhSachLoaiPhong = new ObservableCollection<LoaiPhongKham>(loaiPhongList);
 
-                DanhSachBenhNhan.Clear();
-                int soThuTu = 1; // Khởi tạo biến đếm
-                foreach (var bn in ketQua)
-                {
-                    bn.STT = soThuTu++; // Gán STT và tăng dần (Nhớ thêm property STT vào class BenhNhan nhé)
-                    DanhSachBenhNhan.Add(bn);
-                }
+                // Lấy danh sách bệnh nhân cho AutoComplete
+                var benhNhanList = repoBenhNhan.LayDanhSachAll();
+                DanhSachAllBenhNhan = new ObservableCollection<BenhNhan>(benhNhanList);
+
+                // Đặt ngày mặc định là hôm nay
+                NgayKham = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Lỗi khởi tạo dữ liệu: {ex.Message}", "Lỗi");
             }
         }
-        // -----------------------------------------------------------------
 
-        // Thêm dấu ? để không bị báo lỗi Nullable ở event
-        public event PropertyChangedEventHandler? PropertyChanged;
+        // ========== PARTIAL METHODS (for MVVM Toolkit) ==========
 
-        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        /// <summary>
+        /// Được gọi tự động khi NgayKham thay đổi
+        /// </summary>
+        partial void OnNgayKhamChanged(DateTime? oldValue, DateTime? newValue)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            // Logic khi ngày khám thay đổi (nếu cần)
+        }
+
+        /// <summary>
+        /// Được gọi tự động khi LoaiPhongDuocChon thay đổi
+        /// </summary>
+        partial void OnLoaiPhongDuocChonChanged(LoaiPhongKham? oldValue, LoaiPhongKham? newValue)
+        {
+            // Logic khi loại phòng thay đổi (nếu cần)
         }
     }
 }

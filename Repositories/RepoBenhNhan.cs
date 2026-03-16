@@ -1,49 +1,58 @@
-﻿using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;
 using QuanLyPhongKham_Final.DBHelper;
+using QuanLyPhongKham_Final.Models;
 using System;
 using System.Collections.Generic;
 using System.Windows;
-using QuanLyPhongKham_Final.Models;
 
 namespace QuanLyPhongKham_Final.Repositories
 {
-    public class HamLayDanhSach
+    public class RepoBenhNhan
     {
         private readonly DatabaseHelper dbHelper = new DatabaseHelper();
 
-        // 1. Lấy danh sách Loại Phòng Khám
-        public List<LoaiPhongKham> LayDanhSachLoaiPhong()
+        /// <summary>
+        /// Lấy danh sách tất cả bệnh nhân
+        /// </summary>
+        public List<BenhNhan> LayDanhSachAll()
         {
-            List<LoaiPhongKham> danhSach = new List<LoaiPhongKham>();
+            List<BenhNhan> danhSach = new List<BenhNhan>();
             try
             {
                 using (MySqlConnection conn = dbHelper.GetConnection())
                 {
                     conn.Open();
-                    string query = "SELECT MaLoaiPhongKham, TenLoaiPhongKham, SoLuongToiDa FROM LOAIPHONGKHAM";
+                    string query = "SELECT MaBenhNhan, HoTen, GioiTinh, NamSinh, DiaChi FROM BENHNHAN ORDER BY HoTen";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
                         using (MySqlDataReader reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
                             {
-                                danhSach.Add(new LoaiPhongKham
+                                danhSach.Add(new BenhNhan
                                 {
-                                    MaLoaiPhongKham = reader.GetString("MaLoaiPhongKham"),
-                                    TenLoaiPhongKham = reader.GetString("TenLoaiPhongKham"),
-                                    SoLuongToiDa = reader.GetInt32("SoLuongToiDa")
+                                    MaBenhNhan = reader.GetString("MaBenhNhan"),
+                                    HoTen = reader.GetString("HoTen"),
+                                    GioiTinh = reader.IsDBNull(2) ? "" : reader.GetString("GioiTinh"),
+                                    NamSinh = reader.IsDBNull(3) ? 0 : reader.GetInt32("NamSinh"),
+                                    DiaChi = reader.IsDBNull(4) ? "" : reader.GetString("DiaChi")
                                 });
                             }
                         }
                     }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Lỗi lấy Loại Phòng: " + ex.Message); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("❌ Lỗi lấy danh sách bệnh nhân: " + ex.Message);
+            }
             return danhSach;
         }
 
-        // 2. Lấy Bệnh Nhân theo Ngày và Loại Phòng
-        public List<BenhNhan> LayBenhNhanTheoDieuKien(DateTime ngayKham, string maLoaiPhong)
+        /// <summary>
+        /// Lấy bệnh nhân theo ngày khám và loại phòng
+        /// </summary>
+        public List<BenhNhan> LayTheoDieuKien(DateTime ngayKham, string maLoaiPhong)
         {
             List<BenhNhan> danhSach = new List<BenhNhan>();
             try
@@ -52,11 +61,12 @@ namespace QuanLyPhongKham_Final.Repositories
                 {
                     conn.Open();
                     string query = @"
-                        SELECT bn.MaBenhNhan, bn.HoTen, bn.GioiTinh, bn.NamSinh, bn.DiaChi
+                        SELECT DISTINCT bn.MaBenhNhan, bn.HoTen, bn.GioiTinh, bn.NamSinh, bn.DiaChi
                         FROM BENHNHAN bn
                         JOIN CHITIETKHAMBENH ct ON bn.MaBenhNhan = ct.MaBenhNhan
                         JOIN KHAMBENH kb ON ct.MaKhamBenh = kb.MaKhamBenh
-                        WHERE kb.NgayKham = @NgayKham AND kb.MaLoaiPhongKham = @MaLoaiPhong";
+                        WHERE kb.NgayKham = @NgayKham AND kb.MaLoaiPhongKham = @MaLoaiPhong
+                        ORDER BY bn.HoTen";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
@@ -80,7 +90,10 @@ namespace QuanLyPhongKham_Final.Repositories
                     }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Lỗi lấy Bệnh Nhân: " + ex.Message); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("❌ Lỗi lấy bệnh nhân theo điều kiện: " + ex.Message);
+            }
             return danhSach;
         }
     }

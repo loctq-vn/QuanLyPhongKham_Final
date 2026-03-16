@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,6 +11,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using QuanLyPhongKham_Final.Models;
+using QuanLyPhongKham_Final.ViewModels;
 
 namespace QuanLyPhongKham_Final.Views
 {
