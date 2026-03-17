@@ -54,13 +54,12 @@ namespace QuanLyPhongKham_Final.Repositories
                 using (MySqlConnection conn = dbHelper.GetConnection())
                 {
                     conn.Open();
-                    // Câu lệnh SQL đếm số bệnh nhân giống hệt yêu cầu của bạn
                     string query = @"
-                SELECT COUNT(*) 
-                FROM CHITIETKHAMBENH ctkb
-                INNER JOIN KHAMBENH kb ON ctkb.MaKhamBenh = kb.MaKhamBenh
-                WHERE kb.MaLoaiPhongKham = @MaLoaiPhong
-                AND kb.NgayKham = @NgayKham";
+                    SELECT COUNT(*) 
+                    FROM CHITIETKHAMBENH ctkb
+                    INNER JOIN KHAMBENH kb ON ctkb.MaKhamBenh = kb.MaKhamBenh
+                    WHERE kb.MaLoaiPhongKham = @MaLoaiPhong
+                    AND kb.NgayKham = @NgayKham";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
