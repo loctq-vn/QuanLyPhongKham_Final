@@ -6,7 +6,7 @@ namespace QuanLyPhongKham_Final.DBHelper
     {
         // Thay thế root và password bằng thông tin MySQL của bạn
         private readonly string connectionString =
-            "Server=127.0.0.1;Port=3306;Database=quanlyphongkham;Uid=root;Pwd=123456;";
+            "Server=127.0.0.1;Port=3306;Database=quanlyphongkham;Uid=root;Pwd=123456789;";
 
         public MySqlConnection GetConnection()
         {

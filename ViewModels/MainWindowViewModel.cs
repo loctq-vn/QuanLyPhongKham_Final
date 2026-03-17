@@ -34,9 +34,7 @@ namespace QuanLyPhongKham_Final.ViewModels
         private LoaiPhongKham? loaiPhongDuocChon;
 
         [ObservableProperty]
-        private BenhNhan? benhNhanDuocChon;
-
-        [ObservableProperty]
+        private BenhNhan? benhNhanDuocChon; [ObservableProperty]
         private ObservableCollection<BenhNhan> danhSachBenhNhan = new();
 
         // ========== RELAY COMMANDS ==========
@@ -59,10 +57,28 @@ namespace QuanLyPhongKham_Final.ViewModels
                 return;
             }
 
+            // --- PHẦN THÊM VÀO: KIỂM TRA QUY ĐỊNH 1 - SỐ LƯỢNG TỐI ĐA TRONG NGÀY ---
+            // 1. Lấy số lượng đã có trong Database
+            int soLuongTrongDB = repoKhamBenh.LaySoLuongBenhNhanTrongNgay(NgayKham.Value, LoaiPhongDuocChon.MaLoaiPhongKham);
+            // 2. Lấy số lượng đang nằm chờ lưu trên giao diện
+            int soLuongDangCho = DanhSachBenhNhan.Count;
+
+            // Nếu Tổng số (Đã lưu + Đang chờ thêm) >= Số lượng tối đa của loại phòng đó (40 hoặc 20)
+            if (soLuongTrongDB + soLuongDangCho >= LoaiPhongDuocChon.SoLuongToiDa)
+            {
+                MessageBox.Show($"⚠️ KHÔNG THỂ THÊM BỆNH NHÂN!\n\n" +
+                                $"{LoaiPhongDuocChon.TenLoaiPhongKham} chỉ nhận tối đa {LoaiPhongDuocChon.SoLuongToiDa} bệnh nhân/ngày.\n" +
+                                $"• Đã lưu hệ thống: {soLuongTrongDB} người.\n" +
+                                $"• Đang chờ trong bảng: {soLuongDangCho} người.",
+                                "Quy định phòng khám", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            // ----------------------------------------------------------------------
+
             // Kiểm tra bệnh nhân đã tồn tại trong danh sách chưa
             if (DanhSachBenhNhan.Any(b => b.MaBenhNhan == BenhNhanDuocChon.MaBenhNhan))
             {
-                MessageBox.Show("⚠️ Bệnh nhân này đã có trong danh sách!", "Cảnh báo");
+                MessageBox.Show("⚠️ Bệnh nhân này đã có trong danh sách chờ lưu!", "Cảnh báo");
                 return;
             }
 
@@ -83,7 +99,6 @@ namespace QuanLyPhongKham_Final.ViewModels
 
         /// <summary>
         /// Command để lưu phiếu khám vào database
-        /// Tạo danh sách khám bệnh mới và chi tiết bệnh nhân
         /// </summary>
         [RelayCommand]
         private void LuuPhieuKham()
@@ -120,9 +135,6 @@ namespace QuanLyPhongKham_Final.ViewModels
             }
         }
 
-        /// <summary>
-        /// Kiểm tra dữ liệu đầu vào trước khi lưu
-        /// </summary>
         private bool ValidateDuLieuDauVao()
         {
             if (!NgayKham.HasValue)
@@ -143,59 +155,34 @@ namespace QuanLyPhongKham_Final.ViewModels
                 return false;
             }
 
-            // Kiểm tra từng bệnh nhân có đủ thông tin không
             foreach (var bn in DanhSachBenhNhan)
             {
-                if (string.IsNullOrWhiteSpace(bn.MaBenhNhan))
+                if (string.IsNullOrWhiteSpace(bn.MaBenhNhan) || string.IsNullOrWhiteSpace(bn.HoTen) || bn.NamSinh <= 0)
                 {
-                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Vui lòng chọn mã bệnh nhân!", "Cảnh báo");
-                    return false;
-                }
-
-                if (string.IsNullOrWhiteSpace(bn.HoTen))
-                {
-                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Vui lòng nhập họ tên bệnh nhân!", "Cảnh báo");
-                    return false;
-                }
-
-                if (bn.NamSinh <= 0 || bn.NamSinh > DateTime.Now.Year)
-                {
-                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Năm sinh không hợp lệ!", "Cảnh báo");
+                    MessageBox.Show($"⚠️ Dòng {bn.STT}: Thiếu thông tin hoặc không hợp lệ!", "Cảnh báo");
                     return false;
                 }
             }
-
             return true;
         }
 
-        /// <summary>
-        /// Tạo phiếu khám bệnh mới trong database
-        /// </summary>
         private string TaoPhieuKhamBenh()
         {
-            var ngayKhamValue = NgayKham.Value;
+            var ngayKhamValue = NgayKham ?? DateTime.Now;
             var maLoaiPhong = LoaiPhongDuocChon?.MaLoaiPhongKham ?? "";
 
-            // Tạo phiếu khám bệnh mới
             string maKhamBenh = repoKhamBenh.Them(ngayKhamValue, maLoaiPhong);
-            
             return maKhamBenh;
         }
 
-        /// <summary>
-        /// Tạo danh sách chi tiết khám bệnh cho tất cả bệnh nhân
-        /// </summary>
         private bool TaoDanhSachChiTietKhamBenh(string maKhamBenh)
         {
             bool ketQuaTatCa = true;
-
             foreach (var bn in DanhSachBenhNhan)
             {
                 try
                 {
-                    // Tạo chi tiết khám bệnh cho từng bệnh nhân
                     bool ketQua = repoChiTietKhamBenh.Them(maKhamBenh, bn.MaBenhNhan);
-                    
                     if (!ketQua)
                     {
                         ketQuaTatCa = false;
@@ -209,13 +196,9 @@ namespace QuanLyPhongKham_Final.ViewModels
                     break;
                 }
             }
-
             return ketQuaTatCa;
         }
 
-        /// <summary>
-        /// Xóa dữ liệu cũ sau khi lưu thành công
-        /// </summary>
         private void XoaDuLieuSauKhiLuu()
         {
             DanhSachBenhNhan.Clear();
@@ -225,28 +208,21 @@ namespace QuanLyPhongKham_Final.ViewModels
         }
 
         // ========== CONSTRUCTOR & INITIALIZATION ==========
-
         public MainWindowViewModel()
         {
             InitializeData();
         }
 
-        /// <summary>
-        /// Khởi tạo dữ liệu từ database
-        /// </summary>
         private void InitializeData()
         {
             try
             {
-                // Lấy danh sách loại phòng khám
                 var loaiPhongList = repoLoaiPhongKham.LayDanhSachAll();
                 DanhSachLoaiPhong = new ObservableCollection<LoaiPhongKham>(loaiPhongList);
 
-                // Lấy danh sách bệnh nhân cho AutoComplete
                 var benhNhanList = repoBenhNhan.LayDanhSachAll();
                 DanhSachAllBenhNhan = new ObservableCollection<BenhNhan>(benhNhanList);
 
-                // Đặt ngày mặc định là hôm nay
                 NgayKham = DateTime.Now;
             }
             catch (Exception ex)
@@ -255,14 +231,19 @@ namespace QuanLyPhongKham_Final.ViewModels
             }
         }
 
-        // ========== PARTIAL METHODS (for MVVM Toolkit) ==========
+        // ========== PARTIAL METHODS (Sự kiện tự động của MVVM Toolkit) ==========
 
         /// <summary>
         /// Được gọi tự động khi NgayKham thay đổi
         /// </summary>
         partial void OnNgayKhamChanged(DateTime? oldValue, DateTime? newValue)
         {
-            // Logic khi ngày khám thay đổi (nếu cần)
+            // BẢO MẬT DỮ LIỆU: Đổi sang ngày khác thì phải xóa sạch danh sách hiện tại
+            // Tránh việc lập 5 người ngày hôm nay xong đổi lịch thành ngày mai bấm lưu
+            if (DanhSachBenhNhan.Count > 0)
+            {
+                DanhSachBenhNhan.Clear();
+            }
         }
 
         /// <summary>
@@ -270,7 +251,11 @@ namespace QuanLyPhongKham_Final.ViewModels
         /// </summary>
         partial void OnLoaiPhongDuocChonChanged(LoaiPhongKham? oldValue, LoaiPhongKham? newValue)
         {
-            // Logic khi loại phòng thay đổi (nếu cần)
+            // BẢO MẬT DỮ LIỆU: Đổi loại phòng thì phải xóa sạch danh sách hiện tại
+            if (DanhSachBenhNhan.Count > 0)
+            {
+                DanhSachBenhNhan.Clear();
+            }
         }
     }
 }

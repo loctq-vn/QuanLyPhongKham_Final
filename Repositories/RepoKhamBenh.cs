@@ -44,5 +44,40 @@ namespace QuanLyPhongKham_Final.Repositories
                 return null;
             }
         }
+
+        // Thêm hàm này vào trong class RepoKhamBenh của bạn (giữ nguyên các hàm cũ)
+        public int LaySoLuongBenhNhanTrongNgay(DateTime ngayKham, string maLoaiPhong)
+        {
+            int count = 0;
+            try
+            {
+                using (MySqlConnection conn = dbHelper.GetConnection())
+                {
+                    conn.Open();
+                    // Câu lệnh SQL đếm số bệnh nhân giống hệt yêu cầu của bạn
+                    string query = @"
+                SELECT COUNT(*) 
+                FROM CHITIETKHAMBENH ctkb
+                INNER JOIN KHAMBENH kb ON ctkb.MaKhamBenh = kb.MaKhamBenh
+                WHERE kb.MaLoaiPhongKham = @MaLoaiPhong
+                AND kb.NgayKham = @NgayKham";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@MaLoaiPhong", maLoaiPhong);
+                        cmd.Parameters.AddWithValue("@NgayKham", ngayKham.ToString("yyyy-MM-dd"));
+
+                        // ExecuteScalar dùng để lấy về 1 giá trị duy nhất (kết quả của COUNT)
+                        count = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("❌ Lỗi đếm số lượng bệnh nhân: " + ex.Message);
+            }
+            return count;
+        }
     }
+
 }
