@@ -13,45 +13,42 @@
         TextOptions.TextRenderingMode="Auto"
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{DynamicResource MaterialDesignFont}"
-        Title="Quản Lý Phòng Khám - Danh Sách Khám Bệnh" Height="650" Width="1000" WindowStartupLocation="CenterScreen">
+        Title="Quản Lý Phòng Khám - Danh Sách Khám Bệnh" Height="600" Width="900" WindowStartupLocation="CenterScreen">
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Dòng 0: Tiêu đề BM1 -->
+            <!-- Tiêu đề -->
             <RowDefinition Height="Auto"/>
-            <!-- Dòng 1: Ngày khám & Loại phòng khám -->
-            <RowDefinition Height="Auto"/>
-            <!-- Dòng 1.5: Chọn bệnh nhân và thêm vào danh sách -->
+            <!-- Ngày khám & Loại phòng khám -->
             <RowDefinition Height="*"/>
-            <!-- Dòng 2: Bảng DataGrid -->
+            <!-- DataGrid -->
             <RowDefinition Height="Auto"/>
-            <!-- Dòng 3: Nút Lưu -->
+            <!-- Button -->
         </Grid.RowDefinitions>
 
-        <!-- Dòng 0: Tiêu đề BM1 (Nền vàng) -->
+        <!-- Tiêu đề BM1 (Nền vàng) -->
         <materialDesign:Card Grid.Row="0" Background="LightGoldenrodYellow" Padding="12" Margin="0,0,0,20" UniformCornerRadius="4">
             <TextBlock Text="BM1: Danh Sách Khám Bệnh" FontSize="22" FontWeight="Bold" 
                        HorizontalAlignment="Center" Foreground="Black"/>
         </materialDesign:Card>
 
-        <!-- Dòng 1: Ngày khám & Loại phòng khám -->
-        <Grid Grid.Row="1" Margin="0,0,0,12">
+        <!-- Ngày khám & Loại phòng khám -->
+        <Grid Grid.Row="1" Margin="0,0,0,20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1*"/>
                 <ColumnDefinition Width="40"/>
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Chọn Ngày Khám -->
+            <!-- DatePicker Ngày Khám -->
             <DatePicker x:Name="dpNgayKham" 
-                        materialDesign:HintAssist.Hint="Ngày khám" 
+                        materialDesign:HintAssist.Hint="Ngày khám"
                         Style="{StaticResource MaterialDesignFloatingHintDatePicker}"
                         VerticalAlignment="Center"
-                        FontSize="15"
-                        SelectedDate="{Binding NgayKham, UpdateSourceTrigger=PropertyChanged}"/>
+                        FontSize="15"/>
 
-            <!-- Chọn Loại Phòng Khám -->
+            <!-- ComboBox Loại Phòng Khám -->
             <ComboBox x:Name="cbLoaiPhongKham" Grid.Column="2" 
                       materialDesign:HintAssist.Hint="Loại phòng khám"
                       Style="{StaticResource MaterialDesignFloatingHintComboBox}"
@@ -63,109 +60,90 @@
                       FontSize="15"/>
         </Grid>
 
-        <!-- Dòng 1.5: Chọn bệnh nhân và nút thêm -->
-        <Grid Grid.Row="2" Margin="0,0,0,24">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1*"/>
-                <ColumnDefinition Width="40"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <!-- ScrollViewer cho DataGrid -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Visible">
+            <!-- DataGrid Danh sách Bệnh Nhân -->
+            <DataGrid x:Name="dgDanhSachBenhNhan"
+                      ItemsSource="{Binding DanhSachBenhNhan}"
+                      AutoGenerateColumns="False" 
+                      CanUserAddRows="True"
+                      CanUserDeleteRows="True"
+                      CanUserResizeColumns="False"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="All"
+                      HorizontalGridLinesBrush="#CCCCCC"
+                      VerticalGridLinesBrush="#CCCCCC"
+                      materialDesign:DataGridAssist.ColumnHeaderPadding="10"
+                      Background="White"
+                      RowHeight="40">
 
-            <!-- ComboBox chọn bệnh nhân -->
-            <ComboBox x:Name="cbBenhNhanDuocChon"
-                      materialDesign:HintAssist.Hint="Chọn bệnh nhân"
-                      Style="{StaticResource MaterialDesignFloatingHintComboBox}"
-                      ItemsSource="{Binding DanhSachAllBenhNhan}"
-                      SelectedItem="{Binding BenhNhanDuocChon, UpdateSourceTrigger=PropertyChanged}"
-                      VerticalAlignment="Center"
-                      FontSize="15">
-                
-                <!-- Template cho dropdown list items -->
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="5">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <!-- Tên bệnh nhân (rõ ràng) -->
-                            <TextBlock Grid.Row="0" 
-                                       Text="{Binding HoTen}" 
-                                       FontSize="15" 
-                                       FontWeight="Bold"
-                                       Foreground="Black"/>
-                            
-                            <!-- Thông tin khác (mờ và chữ nhỏ) -->
-                            <TextBlock Grid.Row="1" 
-                                       Margin="0,2,0,0"
-                                       FontSize="12" 
-                                       Opacity="0.6"
-                                       Foreground="Gray">
-                                <Run Text="Mã: "/>
-                                <Run Text="{Binding MaBenhNhan, Mode=OneWay}"/>
-                                <Run Text=" | Năm sinh: "/>
-                                <Run Text="{Binding NamSinh, Mode=OneWay}"/>
-                                <Run Text=" | "/>
-                                <Run Text="{Binding GioiTinh, Mode=OneWay}"/>
-                                <Run Text=" | "/>
-                                <Run Text="{Binding DiaChi, Mode=OneWay}"/>
-                            </TextBlock>
-                        </Grid>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
+                <DataGrid.Columns>
+                    <!-- STT -->
+                    <DataGridTextColumn Header="STT" Binding="{Binding STT}" IsReadOnly="True" Width="60"/>
+                    
+                    <!-- Họ Tên -->
+                    <DataGridTextColumn Header="Họ Tên" Binding="{Binding HoTen}" 
+                                        Width="200"/>
+                    
+                    <!-- Giới Tính -->
+                    <DataGridTextColumn Header="Giới Tính" Binding="{Binding GioiTinh}" 
+                                        Width="100"/>
+                    
+                    <!-- Năm Sinh -->
+                    <DataGridTextColumn Header="Năm Sinh" Binding="{Binding NamSinh}" 
+                                        Width="100"/>
+                    
+                    <!-- Địa Chỉ -->
+                    <DataGridTextColumn Header="Địa Chỉ" Binding="{Binding DiaChi}" 
+                                        Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
 
-            <!-- Nút Thêm Bệnh Nhân -->
-            <Button Grid.Column="2" x:Name="btnThemBenhNhan" 
-                    Content="➕ Thêm BN"
-                    Style="{StaticResource MaterialDesignRaisedDarkButton}"
-                    Width="120" Height="40"
-                    VerticalAlignment="Center"
-                    Command="{Binding ThemBenhNhanCommand}"/>
-        </Grid>
+        <!-- Nút Tiếp Nhận Danh Sách -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,20,0,0">
+            <!-- Nút Tiếp Nhận Danh Sách -->
+            <Button x:Name="btnTiepNhanDanhSach"
+            Content="Tiếp Nhận Danh Sách"
+            Padding="16,8"
+            Margin="0,0,10,0"
+            Style="{StaticResource MaterialDesignRaisedButton}"
+            Background="#1976D2"
+            Foreground="White"
+            FontSize="14"
+            FontWeight="Medium"/>
 
-        <!-- Dòng 2: DataGrid Danh sách Bệnh Nhân -->
-        <DataGrid Grid.Row="3" x:Name="dgDanhSachBenhNhan"
-                  ItemsSource="{Binding DanhSachBenhNhan}"
-                  AutoGenerateColumns="False" 
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="True"
-                  HeadersVisibility="Column"
-                  materialDesign:DataGridAssist.ColumnHeaderPadding="10"
-                  Background="{DynamicResource MaterialDesignPaper}"
-                  RowHeight="40">
+            <!-- Nút Cập Nhật -->
+            <Button x:Name="btnCapNhat"
+            Content="Cập Nhật"
+            Padding="16,8"
+            Margin="150,0,150,0"
+            Style="{StaticResource MaterialDesignRaisedButton}"
+            Background="#1976D2"
+            Foreground="White"
+            FontSize="14"
+            FontWeight="Medium"/>
 
-            <DataGrid.Columns>
-                <!-- STT -->
-                <DataGridTextColumn Header="STT" Binding="{Binding STT}" IsReadOnly="True" Width="50"/>
-                
-                <!-- Họ Tên (Read-only) -->
-                <DataGridTextColumn Header="Họ Tên" Binding="{Binding HoTen}" 
-                                    Width="300" IsReadOnly="True"/>
-                
-                <!-- Giới Tính (Read-only) -->
-                <DataGridTextColumn Header="Giới Tính" Binding="{Binding GioiTinh}" 
-                                    Width="1*" IsReadOnly="True"/>
-                
-                <!-- Năm Sinh (Read-only) -->
-                <DataGridTextColumn Header="Năm Sinh" Binding="{Binding NamSinh}" 
-                                    Width="1*" IsReadOnly="True"/>
-                
-                <!-- Địa Chỉ (Read-only) -->
-                <DataGridTextColumn Header="Địa Chỉ" Binding="{Binding DiaChi}" 
-                                    Width="2*" IsReadOnly="True"/>
-                
-                <!-- Mã BN (Read-only) -->
-                <!--<DataGridTextColumn Header="Mã BN" Binding="{Binding MaBenhNhan}" 
-                                    Width="100" IsReadOnly="True"/>-->
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <!-- Dòng 3: Nút Lưu -->
-        <Button Grid.Row="4" x:Name="btnSave" Content="💾 LƯU PHIẾU KHÁM" 
-                Margin="0,20,0,0" HorizontalAlignment="Right" Width="180" Height="40"
-                Style="{StaticResource MaterialDesignRaisedDarkButton}"
-                Command="{Binding LuuPhieuKhamCommand}"/>
+            <!-- Nút Xóa -->
+            <Button x:Name="btnXoa"
+            Content="Xóa"
+            Padding="16,8"
+            Style="{StaticResource MaterialDesignRaisedButton}"
+            Background="#1976D2"
+            Foreground="White"
+            FontSize="14"
+            FontWeight="Medium"/>
+        </StackPanel>
+        <Button Grid.Row="3" 
+                x:Name="btnThoat"
+                Content="Thoát"
+                HorizontalAlignment="Right"
+                Padding="16,8"
+                Style="{StaticResource MaterialDesignRaisedButton}"
+                Margin="0,10,0,0"
+                Background="#1976D2"
+                Foreground="White"
+                FontSize="14"
+                FontWeight="Medium"/>
     </Grid>
 </Window>
